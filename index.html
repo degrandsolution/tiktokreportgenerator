@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TikTok Performance Report Generator</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        /* Custom Styles and Font Setup */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+        }
+
+        /* TikTok Branding Colors */
+        :root {
+            --tiktok-red: #FE2C55;
+            --tiktok-blue: #25F4EE;
+            --tiktok-black: #161823;
+            --primary-shadow: 0 10px 30px rgba(22, 24, 35, 0.08);
+        }
+
+        /* Keyframe for subtle appearance */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .report-section {
+            animation: fadeIn 0.6s ease-out forwards;
+            opacity: 0;
+        }
+
+        /* Upload Container Styling */
+        .upload-container {
+            border: 3px dashed #d1d5db;
+            transition: all 0.3s ease;
+        }
+        .upload-container.drag-over {
+            border-color: var(--tiktok-red);
+            background-color: #FE2C5511;
+        }
+
+        /* Style for the TikTok header effect */
+        .report-header {
+            position: relative;
+            background-color: var(--tiktok-black);
+            overflow: hidden;
+        }
+
+        .report-header h1 {
+            position: relative;
+            z-index: 10;
+            color: #fff;
+            text-shadow: 
+                -1px -1px 0 var(--tiktok-red), 
+                1px 1px 0 var(--tiktok-blue);
+            transition: all 0.3s;
+        }
+
+        .report-header h1:hover {
+            text-shadow: 
+                -2px -2px 0 var(--tiktok-red), 
+                2px 2kpx 0 var(--tiktok-blue);
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 sm:p-8">
+
+    <div id="app" class="max-w-7xl mx-auto bg-white rounded-xl shadow-2xl">
+        
+        <!-- Header -->
+        <header class="report-header p-8 rounded-t-xl">
+            <h1 class="text-4xl sm:text-5xl font-extrabold text-center tracking-tight">
+                TikTok Report Generator
+            </h1>
+            <p class="text-white text-center mt-2 opacity-80 text-lg">
+                Upload your TikTok CSV data to generate a detailed performance analysis.
+            </p>
+        </header>
+
+        <!-- Upload Interface -->
+        <section id="upload-ui" class="p-8">
+            <div id="drop-area" class="upload-container bg-gray-50 p-10 rounded-xl flex flex-col items-center justify-center cursor-pointer transition" onclick="document.getElementById('csv-input').click()">
+                <i class="fas fa-file-csv text-6xl text-gray-400"></i>
+                <p class="mt-4 text-gray-600 font-semibold">Drag & Drop your TikTok CSV file here</p>
+                <!-- UPDATED: Displaying expected CSV headers from the user's file -->
+                <p class="text-sm text-gray-500 mt-1">or click to select file (Must contain 'Video views', 'Likes', 'Comments', 'Shares', 'Add to Favorites')</p>
+                <input type="file" id="csv-input" accept=".csv" class="hidden">
+            </div>
+            <div id="upload-status" class="mt-4 text-center text-sm font-medium hidden"></div>
+        </section>
+
+        <!-- Loading Spinner -->
+        <div id="loading" class="text-center p-12 hidden">
+            <i class="fas fa-spinner fa-spin text-4xl text-gray-500"></i>
+            <p class="mt-4 text-gray-600 font-medium">Processing data, hang tight...</p>
+        </div>
+
+        <!-- Report Dashboard -->
+        <div id="report-dashboard" class="p-4 sm:p-8 hidden">
+            
+            <!-- Report Title & Date Range -->
+            <section class="mb-8 report-section" style="animation-delay: 0.1s;">
+                <h2 class="text-3xl font-bold text-gray-800 border-b pb-2">
+                    Performance Summary
+                </h2>
+                <p class="text-sm text-gray-500 mt-1" id="date-range">
+                    Report Period: Analyzing posts...
+                </p>
+            </section>
+
+            <!-- Summary Grid -->
+            <section class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 report-section" style="animation-delay: 0.2s;">
+                <!-- Total Views -->
+                <div class="summary-card bg-white p-5 rounded-lg shadow-md border border-gray-100 hover:shadow-lg transition duration-300">
+                    <div class="text-gray-500 text-sm font-medium uppercase">Total Views</div>
+                    <div class="text-3xl font-extrabold mt-1 text-black" id="total-views">0</div>
+                </div>
+                <!-- Total Engagement -->
+                <div class="summary-card bg-white p-5 rounded-lg shadow-md border border-gray-100 hover:shadow-lg transition duration-300">
+                    <div class="text-gray-500 text-sm font-medium uppercase">Total Engagements</div>
+                    <div class="text-3xl font-extrabold mt-1 text-black" id="total-engagement">0</div>
+                </div>
+                <!-- Total Posts -->
+                <div class="summary-card bg-white p-5 rounded-lg shadow-md border border-gray-100 hover:shadow-lg transition duration-300">
+                    <div class="text-gray-500 text-sm font-medium uppercase">Posts Analyzed</div>
+                    <div class="text-3xl font-extrabold mt-1 text-black" id="total-posts">0</div>
+                </div>
+                <!-- Engagement Rate -->
+                <div class="summary-card bg-white p-5 rounded-lg shadow-md border border-gray-100 hover:shadow-lg transition duration-300">
+                    <div class="text-gray-500 text-sm font-medium uppercase">Avg. Eng. Rate</div>
+                    <div class="text-3xl font-extrabold mt-1 text-black" id="avg-eng-rate">0.00%</div>
+                </div>
+                 <!-- Avg Profile Visits -->
+                <div class="summary-card bg-white p-5 rounded-lg shadow-md border border-gray-100 hover:shadow-lg transition duration-300">
+                    <div class="text-gray-500 text-sm font-medium uppercase">Avg. Saves (Favorites)</div>
+                    <div class="text-3xl font-extrabold mt-1 text-black" id="avg-profile-visits">0</div>
+                </div>
+            </section>
+
+            <!-- Key Metrics Table -->
+            <section class="mb-8 report-section" style="animation-delay: 0.3s;">
+                <h3 class="text-2xl font-semibold text-gray-700 mb-4">Key Performance Indicators</h3>
+                <div class="overflow-x-auto rounded-lg shadow-lg">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Metric</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg. per Post</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Engagement %</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200 text-gray-800 font-medium" id="kpi-table-body">
+                            <!-- Rows populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            
+            <!-- Top Performers Section -->
+            <section class="mb-10 report-section" style="animation-delay: 0.4s;">
+                <h3 class="text-2xl font-semibold text-gray-700 mb-4">Champion Posts</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="top-performers-grid">
+                    <!-- Top performers populated by JS -->
+                </div>
+            </section>
+
+            <!-- Detailed Content Table -->
+            <section class="report-section" style="animation-delay: 0.5s;">
+                <h3 class="text-2xl font-semibold text-gray-700 mb-4">Content Breakdown</h3>
+                <div class="overflow-x-auto rounded-lg shadow-lg">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post ID / Caption</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Views</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Likes</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Comments</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Shares</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Saves (Favorites)</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Eng. Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200" id="content-table-body">
+                            <!-- Content populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- Error Message Box -->
+        <div id="error-message" class="p-8 hidden">
+            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg" role="alert">
+                <p class="font-bold text-lg">Data Error</p>
+                <p id="error-text" class="text-sm mt-1"></p>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="p-4 text-center text-xs text-gray-400 border-t mt-6 rounded-b-xl">
+            TikTok Performance Report generated by Gemini
+        </footer>
+    </div>
+
+    <script>
+        // --- Core Data Structures ---
+        const METRICS = [
+            { key: 'Likes', label: 'Likes', icon: 'fas fa-heart', color: 'var(--tiktok-red)' },
+            { key: 'Comments', label: 'Comments', icon: 'fas fa-comment-dots', color: 'var(--tiktok-blue)' },
+            { key: 'Shares', label: 'Shares', icon: 'fas fa-share', color: '#10B981' },
+            // Mapped from 'Add to Favorites' in CSV
+            { key: 'Add to Favorites', label: 'Saves (Favorites)', icon: 'fas fa-bookmark', color: '#F59E0B' } 
+        ];
+
+        // --- Utility Functions ---
+        
+        /** Converts base64 encoded string to ArrayBuffer. Needed for playing raw audio */
+        function base64ToArrayBuffer(base64) {
+            const binaryString = atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        /** Converts PCM (Pulse Code Modulation) audio data to a standard WAV Blob. */
+        function pcmToWav(pcmData, sampleRate) {
+            const numChannels = 1;
+            const bytesPerSample = 2; // 16-bit PCM
+            const blockAlign = numChannels * bytesPerSample;
+            const byteRate = sampleRate * blockAlign;
+
+            const buffer = new ArrayBuffer(44 + pcmData.length * bytesPerSample);
+            const view = new DataView(buffer);
+            let offset = 0;
+
+            /* Utility to write a string (4 chars) */
+            function writeString(s) {
+                for (let i = 0; i < s.length; i++) {
+                    view.setUint8(offset++, s.charCodeAt(i));
+                }
+            }
+
+            /* RIFF chunk */
+            writeString('RIFF');
+            view.setUint32(offset, 36 + pcmData.length * bytesPerSample, true); offset += 4;
+            writeString('WAVE');
+
+            /* FMT chunk */
+            writeString('fmt ');
+            view.setUint32(offset, 16, true); offset += 4; // Sub-chunk size
+            view.setUint16(offset, 1, true); offset += 2; // Audio format (1 = PCM)
+            view.setUint16(offset, numChannels, true); offset += 2;
+            view.setUint32(offset, sampleRate, true); offset += 4;
+            view.setUint32(offset, byteRate, true); offset += 4;
+            view.setUint16(offset, blockAlign, true); offset += 2;
+            view.setUint16(offset, bytesPerSample * 8, true); offset += 2; // Bits per sample
+
+            /* Data chunk */
+            writeString('data');
+            view.setUint32(offset, pcmData.length * bytesPerSample, true); offset += 4;
+
+            /* Write PCM data (16-bit signed) */
+            for (let i = 0; i < pcmData.length; i++) {
+                view.setInt16(offset, pcmData[i], true);
+                offset += 2;
+            }
+
+            return new Blob([view], { type: 'audio/wav' });
+        }
+
+
+        /**
+         * Parses a CSV string into an array of objects.
+         * Assumes the first row is the header.
+         * @param {string} csvText - The CSV content as a string.
+         * @returns {Array<Object>} - Array of row objects.
+         */
+        function parseCSV(csvText) {
+            // Updated to handle both windows and unix line endings
+            const lines = csvText.trim().replace(/\r/g, '').split('\n');
+            if (lines.length === 0) return [];
+
+            // Simple split by comma for headers, then trim and remove quotes
+            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            const data = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                // Simple split for data rows, assumes no complex escaped fields
+                const currentLine = lines[i].split(',').map(d => d.trim().replace(/"/g, ''));
+                if (currentLine.length !== headers.length) continue; // Skip malformed rows
+
+                const row = {};
+                headers.forEach((header, index) => {
+                    row[header] = currentLine[index];
+                });
+                data.push(row);
+            }
+
+            return data;
+        }
+
+        /**
+         * Validates and cleans raw data, converting metrics to numbers.
+         * @param {Array<Object>} rawData - Data from parseCSV.
+         * @returns {Array<Object>} - Cleaned and parsed data.
+         */
+        function processData(rawData) {
+            const cleanedData = [];
+            
+            // REQUIRED COLUMNS (based on user's uploaded CSV: Video(2025_09_29-2025_10_26).csv)
+            const requiredColumns = ['Video link', 'Video title', 'Post time', 'Video views', 'Likes', 'Comments', 'Shares', 'Add to Favorites'];
+            
+            // Check if headers exist
+            if (rawData.length > 0) {
+                const headers = Object.keys(rawData[0]);
+                const missing = requiredColumns.filter(col => !headers.includes(col));
+                if (missing.length > 0) {
+                    throw new Error(`Missing required columns in CSV: ${missing.join(', ')}. Please ensure you are uploading the correct TikTok Video Data CSV.`);
+                }
+            }
+
+            rawData.forEach((row, index) => {
+                const post = {
+                    id: index + 1,
+                    // Note: 'Video ID' is missing in CSV, using index + 1 as placeholder
+                    postId: index + 1, 
+                    link: row['Video link'],
+                    // Mapped from 'Video title'
+                    caption: row['Video title'] || `Post ${index + 1}`,
+                    postTime: row['Post time'] ? new Date(row['Post time']).getTime() : 0,
+                    
+                    // Convert and clean metric values using the CSV names
+                    views: parseInt(row['Video views'] || '0', 10), // Mapped from 'Video views'
+                    likes: parseInt(row['Likes'] || '0', 10),
+                    comments: parseInt(row['Comments'] || '0', 10),
+                    shares: parseInt(row['Shares'] || '0', 10),
+                    profileVisits: parseInt(row['Add to Favorites'] || '0', 10), // Mapped from 'Add to Favorites'
+                };
+
+                // Calculate Engagement (Likes + Comments + Shares)
+                post.engagement = post.likes + post.comments + post.shares;
+
+                // Calculate Engagement Rate (as percentage of Views)
+                post.engagementRate = post.views > 0 ? (post.engagement / post.views) * 100 : 0;
+
+                if (post.views > 0) {
+                    cleanedData.push(post);
+                }
+            });
+            
+            if (cleanedData.length === 0) {
+                 throw new Error("No valid posts found with positive view counts. Check your data format and values.");
+            }
+
+            return cleanedData.sort((a, b) => b.postTime - a.postTime); // Sort by newest first
+        }
+
+        /**
+         * Calculates aggregated metrics from processed data.
+         * @param {Array<Object>} data - Cleaned and parsed data.
+         * @returns {Object} - Aggregated results.
+         */
+        function calculateMetrics(data) {
+            if (data.length === 0) return null;
+
+            const totalPosts = data.length;
+            
+            const totals = data.reduce((acc, post) => {
+                acc.views += post.views;
+                acc.likes += post.likes;
+                acc.comments += post.comments;
+                acc.shares += post.shares;
+                acc.profileVisits += post.profileVisits;
+                acc.engagement += post.engagement;
+                return acc;
+            }, { views: 0, likes: 0, comments: 0, shares: 0, profileVisits: 0, engagement: 0 });
+
+            const averages = {
+                avgViews: totals.views / totalPosts,
+                avgLikes: totals.likes / totalPosts,
+                avgComments: totals.comments / totalPosts,
+                avgShares: totals.shares / totalPosts,
+                avgProfileVisits: totals.profileVisits / totalPosts,
+            };
+            
+            const totalEngagementRate = totals.views > 0 ? (totals.engagement / totals.views) * 100 : 0;
+            
+            const sortedByViews = [...data].sort((a, b) => b.views - a.views);
+            const sortedByEngagement = [...data].sort((a, b) => b.engagement - a.engagement);
+            const sortedByProfileVisits = [...data].sort((a, b) => b.profileVisits - a.profileVisits);
+
+            // Date Range
+            const minDate = new Date(data[data.length - 1].postTime);
+            const maxDate = new Date(data[0].postTime);
+            
+            const dateFormatter = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+
+            return {
+                totals,
+                averages,
+                totalPosts,
+                totalEngagementRate,
+                top: {
+                    views: sortedByViews[0],
+                    engagement: sortedByEngagement[0],
+                    profileVisits: sortedByProfileVisits[0],
+                },
+                dateRange: `${dateFormatter.format(minDate)} - ${dateFormatter.format(maxDate)}`,
+            };
+        }
+
+        /** Formats a number with thousands separators. */
+        function formatNumber(num) {
+            return new Intl.NumberFormat('en-US').format(Math.round(num));
+        }
+
+        /** Formats a percentage. */
+        function formatPercent(num) {
+            return num.toFixed(2) + '%';
+        }
+
+        // --- Rendering Functions ---
+
+        /** Renders the main summary cards. */
+        function renderSummary(metrics) {
+            if (!metrics) return;
+
+            document.getElementById('total-views').textContent = formatNumber(metrics.totals.views);
+            document.getElementById('total-engagement').textContent = formatNumber(metrics.totals.engagement);
+            document.getElementById('total-posts').textContent = metrics.totalPosts;
+            document.getElementById('avg-eng-rate').textContent = formatPercent(metrics.totalEngagementRate);
+            document.getElementById('avg-profile-visits').textContent = formatNumber(metrics.averages.avgProfileVisits);
+            document.getElementById('date-range').textContent = `Report Period: ${metrics.dateRange}`;
+        }
+
+        /** Renders the Key Performance Indicators table. */
+        function renderKPIs(metrics) {
+            const tbody = document.getElementById('kpi-table-body');
+            tbody.innerHTML = '';
+
+            const kpiData = [
+                { title: 'Likes (Reactions)', total: metrics.totals.likes, avg: metrics.averages.avgLikes, views: metrics.totals.views },
+                { title: 'Comments', total: metrics.totals.comments, avg: metrics.averages.avgComments, views: metrics.totals.views },
+                { title: 'Shares', total: metrics.totals.shares, avg: metrics.averages.avgShares, views: metrics.totals.views },
+                { title: 'Saves (Favorites)', total: metrics.totals.profileVisits, avg: metrics.averages.avgProfileVisits, views: metrics.totals.views },
+            ];
+
+            kpiData.forEach(item => {
+                const engRate = item.views > 0 ? (item.total / item.views) * 100 : 0;
+                const row = `
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">${item.title}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${formatNumber(item.total)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${formatNumber(item.avg)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${formatPercent(engRate)}</td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        }
+
+        /** Renders the Top Performers section. */
+        function renderTopPerformers(metrics) {
+            const grid = document.getElementById('top-performers-grid');
+            grid.innerHTML = '';
+            
+            const topData = [
+                { 
+                    key: 'views', 
+                    title: 'Highest Views', 
+                    icon: 'fas fa-eye', 
+                    value: metrics.top.views.views,
+                    post: metrics.top.views
+                },
+                { 
+                    key: 'engagement', 
+                    title: 'Highest Engagement', 
+                    icon: 'fas fa-chart-line', 
+                    value: metrics.top.engagement.engagement,
+                    post: metrics.top.engagement
+                },
+                { 
+                    key: 'profileVisits', 
+                    title: 'Highest Saves', 
+                    icon: 'fas fa-bookmark', 
+                    value: metrics.top.profileVisits.profileVisits,
+                    post: metrics.top.profileVisits
+                }
+            ];
+
+            topData.forEach(item => {
+                const formattedValue = formatNumber(item.value);
+                const captionSnippet = item.post.caption.length > 80 ? item.post.caption.substring(0, 80) + '...' : item.post.caption;
+                
+                const card = `
+                    <div class="bg-gray-50 p-6 rounded-xl border-l-4 border-black shadow-md hover:shadow-lg transition duration-300">
+                        <div class="flex items-center space-x-2">
+                            <i class="${item.icon} text-xl text-black"></i>
+                            <h4 class="text-lg font-semibold text-gray-900">${item.title}</h4>
+                        </div>
+                        <div class="text-4xl font-extrabold mt-2 text-black">${formattedValue}</div>
+                        <p class="text-sm text-gray-600 mt-2 italic">${captionSnippet}</p>
+                        <a href="${item.post.link}" target="_blank" class="text-xs text-red-600 font-medium hover:underline mt-1 inline-block">
+                            View Post <i class="fas fa-external-link-alt ml-1"></i>
+                        </a>
+                    </div>
+                `;
+                grid.innerHTML += card;
+            });
+        }
+
+        /** Renders the detailed content table. */
+        function renderContentTable(data, metrics) {
+            const tbody = document.getElementById('content-table-body');
+            tbody.innerHTML = '';
+
+            const topViewId = metrics.top.views.id;
+
+            data.forEach(post => {
+                const date = new Date(post.postTime).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const captionSnippet = post.caption.length > 50 ? post.caption.substring(0, 50) + '...' : post.caption;
+                
+                // Highlight the highest performing post by views
+                const rowClass = post.id === topViewId ? 'bg-yellow-50/70 border-l-4 border-yellow-500' : 'bg-white';
+
+                const row = `
+                    <tr class="${rowClass} hover:bg-gray-50 transition">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${post.id}</td>
+                        <td class="px-6 py-4 text-sm font-medium text-gray-900 text-left">
+                            <a href="${post.link}" target="_blank" class="text-black hover:text-red-500 transition block whitespace-normal" title="${post.caption}">
+                                ${captionSnippet}
+                            </a>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-500">${date}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right">${formatNumber(post.views)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right">${formatNumber(post.likes)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right">${formatNumber(post.comments)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right">${formatNumber(post.shares)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right">${formatNumber(post.profileVisits)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-right text-red-500">${formatPercent(post.engagementRate)}</td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        }
+
+        // --- Main Controller ---
+
+        /** Displays an error message and hides the report. */
+        function showError(message) {
+            document.getElementById('error-text').textContent = message;
+            document.getElementById('error-message').classList.remove('hidden');
+            document.getElementById('report-dashboard').classList.add('hidden');
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('upload-ui').classList.remove('hidden');
+            document.getElementById('upload-status').classList.add('hidden');
+        }
+
+        /** Clears the error message. */
+        function clearError() {
+            document.getElementById('error-message').classList.add('hidden');
+        }
+
+        /** Main function to process file and render report. */
+        function generateReport(csvText) {
+            clearError();
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('upload-ui').classList.add('hidden');
+            document.getElementById('report-dashboard').classList.add('hidden');
+
+            try {
+                // 1. Parse Raw Data
+                const rawData = parseCSV(csvText);
+
+                // 2. Process and Clean Data
+                const processedData = processData(rawData);
+
+                // 3. Calculate Aggregates
+                const metrics = calculateMetrics(processedData);
+
+                if (!metrics) {
+                    throw new Error("The file contained no valid, viewable post data.");
+                }
+
+                // 4. Render Dashboard
+                renderSummary(metrics);
+                renderKPIs(metrics);
+                renderTopPerformers(metrics);
+                renderContentTable(processedData, metrics);
+
+                // 5. Show Report
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('report-dashboard').classList.remove('hidden');
+                
+            } catch (error) {
+                console.error("Report Generation Error:", error);
+                showError(error.message);
+            }
+        }
+
+        // --- Event Listeners and File Handling ---
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const csvInput = document.getElementById('csv-input');
+            const dropArea = document.getElementById('drop-area');
+            const uploadStatus = document.getElementById('upload-status');
+
+            const handleFile = (file) => {
+                if (!file || !file.name.toLowerCase().endsWith('.csv')) {
+                    showError("Invalid file type. Please upload a CSV file.");
+                    return;
+                }
+
+                uploadStatus.textContent = `File selected: ${file.name}`;
+                uploadStatus.classList.remove('hidden');
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    generateReport(e.target.result);
+                };
+                reader.onerror = () => {
+                    showError("Could not read the file.");
+                };
+                reader.readAsText(file);
+            };
+
+            // 1. File Input Change
+            csvInput.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                handleFile(file);
+            });
+
+            // 2. Drag and Drop Handlers
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, () => dropArea.classList.add('drag-over'), false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, () => dropArea.classList.remove('drag-over'), false);
+            });
+
+            dropArea.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const file = dt.files[0];
+                handleFile(file);
+            }, false);
+
+        });
+    </script>
+</body>
+</html>
